@@ -15,4 +15,5 @@ pyyaml
 tqdm
 tenacity
 ragas
+litellm
 openai==0.28
