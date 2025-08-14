@@ -1,45 +1,64 @@
 import os
-import sys
-from urllib.parse import urlparse
-
-import litellm  # type: ignore
-import streamlit as st  # type: ignore
-from dotenv import load_dotenv  # type: ignore
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-
-from src.credibility.scoring import compute_score
-from src.detection.flags import suspicion_score
-from src.factcheck.pipeline import wiki_search
-from src.retriever.hybrid import Retriever
-from src.ingestion.rss_sources import HEALTHCARE_RSS
-from src.ingestion.fetch_rss import fetch_and_store
-from src.index.indexer import index_batch
-
+import streamlit as st
+from dotenv import load_dotenv
 load_dotenv()
 
+# Pull keys from Streamlit Secrets (OpenRouter) and standardize env
+try:
+    if "API_KEY" in st.secrets and st.secrets["API_KEY"]:
+        os.environ["OPENAI_API_KEY"] = st.secrets["API_KEY"]           # for OpenAI-compatible clients
+        os.environ["OPENROUTER_API_KEY"] = st.secrets["API_KEY"]       # explicit OpenRouter var
+    if "API_BASE" in st.secrets and st.secrets["API_BASE"]:
+        os.environ["OPENAI_API_BASE"] = st.secrets["API_BASE"]         # used by OpenAI-compatible clients
+        os.environ["OPENROUTER_BASE_URL"] = st.secrets["API_BASE"]
+except Exception:
+    pass
 
-class OpenAILLM:
-    def __init__(self) -> None:
-        self.api_base = os.getenv("API_BASE", "https://openrouter.ai/api/v1")
-        self.api_key = os.getenv("API_KEY")
+try:
+    import litellm
+except Exception:
+    litellm = None
 
-    def generate(self, claim: str, evidence_list: list[dict]) -> str:
-        joined = "\n\n".join(f"{e['title']}: {e['summary']}" for e in evidence_list)
-        prompt = (
-            f"Claim: {claim}\n\n"
-            f"Evidence:\n{joined}\n\n"
-            "Classify the claim as True, False, Partly True, or Unclear, and give a short explanation."
+class SafeLLM:
+    def __init__(self, model: str | None = None):
+        # OpenRouter model names are namespaced; this one proxies OpenAI's gpt-4o-mini
+        self.model = model or os.getenv("LITELLM_MODEL", "openai/gpt-4o-mini")
+        self.api_key = (
+            os.getenv("OPENAI_API_KEY")
+            or os.getenv("OPENROUTER_API_KEY")
+            or os.getenv("API_KEY")
         )
-        resp = litellm.completion(
-            model="openai/gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            api_base=self.api_base,
-            api_key=self.api_key,
-            temperature=0,
+        self.api_base = (
+            os.getenv("OPENAI_API_BASE")
+            or os.getenv("OPENROUTER_BASE_URL")
+            or os.getenv("API_BASE")
+            or "https://openrouter.ai/api/v1"
         )
-        return resp["choices"][0]["message"]["content"]
 
+    def generate(self, claim: str, evidence: list[dict]) -> str:
+        if not litellm or not self.api_key:
+            return "LLM not configured. Skipping."
+        try:
+            blurbs = []
+            for ev in evidence or []:
+                title = ev.get("title") or ev.get("page") or ""
+                text = ev.get("extract") or ev.get("summary") or ev.get("text") or ""
+                blurbs.append(f"- {title}: {text[:400] if text else ''}")
+            prompt = f"Claim: {claim}\nEvidence:\n" + "\n".join(blurbs) + "\nRespond yes/no with one brief sentence."
+            resp = litellm.completion(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=20,
+                api_base=self.api_base,
+                api_key=self.api_key,
+            )
+            msg = resp.get("choices", [{}])[0].get("message", {}).get("content") or ""
+            return msg.strip() or "No verdict."
+        except Exception:
+            return "LLM call failed. Skipping."
+
+# instantiate once
+llm = SafeLLM()
 
 st.set_page_config(page_title="Healthcare News RAG", layout="wide")
 st.title("Healthcare News RAG — Prototype")
