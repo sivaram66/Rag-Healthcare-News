@@ -12,6 +12,9 @@ from src.credibility.scoring import compute_score
 from src.detection.flags import suspicion_score
 from src.factcheck.pipeline import wiki_search
 from src.retriever.hybrid import Retriever
+from src.ingestion.rss_sources import HEALTHCARE_RSS
+from src.ingestion.fetch_rss import fetch_and_store
+from src.index.indexer import index_batch
 
 load_dotenv()
 
@@ -46,6 +49,19 @@ top_k = st.sidebar.slider("Top-K", 3, 15, 8)
 
 # Query input
 query = st.text_input("Ask a healthcare news question:")
+
+# Sidebar: quick bootstrap for Cloud
+init_clicked = st.sidebar.button("Initialize / Refresh index")
+if init_clicked:
+    with st.spinner("Fetching a few items and building the index..."):
+        for feed in HEALTHCARE_RSS:
+            fetch_and_store(feed, max_items=5)
+        index_batch(batch_size=64)
+    st.sidebar.success("Index refreshed")
+
+# Create retriever pointing at bundled index path
+retriever = Retriever(top_k=top_k, persist_dir="data/vectors")
+st.sidebar.caption(f"Indexed chunks: {retriever.store.count()}")
 
 if st.button("Search") and query:
     r = Retriever(top_k=top_k)
