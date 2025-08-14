@@ -3,13 +3,13 @@ import streamlit as st
 from dotenv import load_dotenv
 load_dotenv()
 
-# Pull keys from Streamlit Secrets (OpenRouter) and standardize env
+# Pull OpenRouter/OpenAI secrets from Streamlit and map to env
 try:
     if "API_KEY" in st.secrets and st.secrets["API_KEY"]:
-        os.environ["OPENAI_API_KEY"] = st.secrets["API_KEY"]           # for OpenAI-compatible clients
-        os.environ["OPENROUTER_API_KEY"] = st.secrets["API_KEY"]       # explicit OpenRouter var
+        os.environ["OPENAI_API_KEY"] = st.secrets["API_KEY"]
+        os.environ["OPENROUTER_API_KEY"] = st.secrets["API_KEY"]
     if "API_BASE" in st.secrets and st.secrets["API_BASE"]:
-        os.environ["OPENAI_API_BASE"] = st.secrets["API_BASE"]         # used by OpenAI-compatible clients
+        os.environ["OPENAI_API_BASE"] = st.secrets["API_BASE"]
         os.environ["OPENROUTER_BASE_URL"] = st.secrets["API_BASE"]
 except Exception:
     pass
@@ -21,7 +21,6 @@ except Exception:
 
 class SafeLLM:
     def __init__(self, model: str | None = None):
-        # OpenRouter model names are namespaced; this one proxies OpenAI's gpt-4o-mini
         self.model = model or os.getenv("LITELLM_MODEL", "openai/gpt-4o-mini")
         self.api_key = (
             os.getenv("OPENAI_API_KEY")
@@ -44,7 +43,10 @@ class SafeLLM:
                 title = ev.get("title") or ev.get("page") or ""
                 text = ev.get("extract") or ev.get("summary") or ev.get("text") or ""
                 blurbs.append(f"- {title}: {text[:400] if text else ''}")
-            prompt = f"Claim: {claim}\nEvidence:\n" + "\n".join(blurbs) + "\nRespond yes/no with one brief sentence."
+            prompt = (
+                f"Claim: {claim}\nEvidence:\n" + "\n".join(blurbs) +
+                "\nRespond yes/no with one brief sentence."
+            )
             resp = litellm.completion(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
@@ -96,7 +98,6 @@ if search_clicked and query.strip():
     if not docs:
         st.warning("No results yet. Try a different question.")
     else:
-        llm = OpenAILLM()
         for i, (doc, meta) in enumerate(zip(docs, metas), start=1):
             st.markdown(f"### {i}. {meta.get('title','')}")
             st.caption(f"{meta.get('source','')} — {meta.get('published_at','')}")
