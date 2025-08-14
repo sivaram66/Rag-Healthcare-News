@@ -1,7 +1,11 @@
 import chromadb  # type: ignore
 from chromadb.config import Settings  # type: ignore
 from pathlib import Path
+import os
 
+persist_dir = os.path.join(os.getcwd(), "chroma_data")
+os.makedirs(persist_dir, exist_ok=True)
+client = chromadb.PersistentClient(path=persist_dir)
 
 class VectorStore:
     def __init__(self, persist_dir: str = "data/vectors", collection_name: str = "healthcare_news") -> None:
