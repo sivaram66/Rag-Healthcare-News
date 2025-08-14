@@ -61,13 +61,12 @@ class SafeLLM:
 llm = SafeLLM()
 
 st.set_page_config(page_title="Healthcare News RAG", layout="wide")
+
+# UI controls (define before using them)
 st.title("Healthcare News RAG — Prototype")
-
-# Sidebar config
-top_k = st.sidebar.slider("Top-K", 3, 15, 8)
-
-# Query input
-query = st.text_input("Ask a healthcare news question:")
+top_k = st.sidebar.slider("Top‑k results", min_value=3, max_value=20, value=8, step=1)
+query = st.text_input("Ask a healthcare news question:", value="")
+search_clicked = st.button("Search")
 
 # Sidebar: quick bootstrap for Cloud
 init_clicked = st.sidebar.button("Initialize / Refresh index")
@@ -78,15 +77,21 @@ if init_clicked:
         index_batch(batch_size=64)
     st.sidebar.success("Index refreshed")
 
-# Create retriever pointing at bundled index path
-retriever = Retriever(top_k=top_k, persist_dir="data/vectors")
-st.sidebar.caption(f"Indexed chunks: {retriever.store.count()}")
+# Build the retriever AFTER top_k exists
+from src.retriever.hybrid import Retriever
+retriever = Retriever(top_k=top_k)
 
-if st.button("Search") and query:
-    r = Retriever(top_k=top_k)
-    res = r.search(query)
-    docs = res["documents"][0]
-    metas = res["metadatas"][0]
+# (Optional) show index size if your VectorStore supports count()
+try:
+    st.sidebar.caption(f"Indexed chunks: {retriever.store.count()}")
+except Exception:
+    pass
+
+# Use the retriever only when a query is submitted
+if search_clicked and query.strip():
+    results = retriever.search(query)
+    docs = results["documents"][0]
+    metas = results["metadatas"][0]
 
     if not docs:
         st.warning("No results yet. Try a different question.")
@@ -113,3 +118,5 @@ if st.button("Search") and query:
                 st.write("**Evidence:")
                 for evi in evidence:
                     st.markdown(f"- **{evi['title']}** — {evi['summary'][:200]}...")
+else:
+    st.write("No results yet. Try a different question.")
