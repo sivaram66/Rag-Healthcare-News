@@ -17,3 +17,4 @@ tenacity
 ragas>=0.1.8
 openai>=1.40.0,<2.0.0
 litellm>=1.35.3
+pysqlite3-binary==0.5.2.post3

@@ -1,4 +1,3 @@
-# src/ingestion/rss_sources.py
 
 # A short starter list of reliable Healthcare RSS feeds
 HEALTHCARE_RSS = [
