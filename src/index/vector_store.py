@@ -4,10 +4,10 @@ from pathlib import Path
 RUNNING_IN_CLOUD = os.getenv("STREAMLIT_RUNTIME") is not None
 
 if RUNNING_IN_CLOUD:
-    from chromadb.api import Client as ChromaInMemoryClient
+    from chromadb.api import Client as ChromaInMemoryClient # type: ignore
 else:
-    import chromadb
-    from chromadb.config import Settings
+    import chromadb # type: ignore
+    from chromadb.config import Settings # type: ignore
 
 
 class VectorStore:
