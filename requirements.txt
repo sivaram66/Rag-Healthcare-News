@@ -10,7 +10,7 @@ sqlite-utils
 sentence-transformers
 chromadb==0.3.29
 scikit-learn
-pydantic
+pydantic>=2.5,<3.0
 pyyaml
 tqdm
 tenacity
