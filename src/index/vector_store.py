@@ -1,17 +1,12 @@
 import chromadb  # type: ignore
-from chromadb.config import Settings  # type: ignore
 from pathlib import Path
 import os
 
 
 class VectorStore:
-    def __init__(self, persist_dir: str = "chroma_data", collection_name: str = "healthcare_news") -> None:
-        # Create a local directory to persist DB (Streamlit Cloud allows /mount writes)
-        persist_path = os.path.join(os.getcwd(), persist_dir)
-        Path(persist_path).mkdir(parents=True, exist_ok=True)
-
-        # Use PersistentClient to avoid runtime errors
-        self.client = chromadb.PersistentClient(path=persist_path)
+    def __init__(self, collection_name: str = "healthcare_news") -> None:
+        # Use an in-memory client (no persistence — works on Streamlit Cloud)
+        self.client = chromadb.Client()
 
         # Create or get the collection
         self.collection = self.client.get_or_create_collection(
