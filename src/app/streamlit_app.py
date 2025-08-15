@@ -104,7 +104,13 @@ if search_clicked and query.strip():
             st.write(doc[:800] + "…")
 
             claim = doc[:300]
-            evidence = wiki_search(claim)
+
+            # where you build `claim` and fetch evidence
+            try:
+                evidence = wiki_search(claim, limit=3) or []
+            except Exception:
+                evidence = []
+
             verdict_text = llm.generate(claim, evidence)
 
             domain = urlparse(meta.get("source", "")).netloc
@@ -121,3 +127,10 @@ if search_clicked and query.strip():
                     st.markdown(f"- **{evi['title']}** — {evi['summary'][:200]}...")
 else:
     st.write("No results yet. Try a different question.")
+
+# Imports near the top
+try:
+    from src.factcheck.pipeline import wiki_search  # preferred (returns list of dicts with title/extract)
+except Exception:
+    # Fallback to evidence helper if pipeline import fails
+    from src.factcheck.evidence import get_wikipedia_evidence as wiki_search
