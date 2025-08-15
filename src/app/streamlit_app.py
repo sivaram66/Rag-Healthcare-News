@@ -1,6 +1,7 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 load_dotenv()
 
 # Pull OpenRouter/OpenAI secrets from Streamlit and map to env
