@@ -19,7 +19,6 @@ class Embedder:
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # Force CPU + float32
         self.model = AutoModel.from_pretrained(model_name, torch_dtype=torch.float32)
         self.model.eval()
 
@@ -33,6 +32,5 @@ class Embedder:
             )
             outputs = self.model(**inputs)
             pooled = _mean_pool(outputs.last_hidden_state, inputs["attention_mask"])
-            # L2-normalize and return as plain Python lists (no NumPy)
             vecs = F.normalize(pooled, p=2, dim=1)
             return vecs.cpu().tolist()

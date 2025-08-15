@@ -105,7 +105,6 @@ if search_clicked and query.strip():
 
             claim = doc[:300]
 
-            # where you build `claim` and fetch evidence
             try:
                 evidence = wiki_search(claim, limit=3) or []
             except Exception:
